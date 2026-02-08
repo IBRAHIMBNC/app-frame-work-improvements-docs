@@ -1,9 +1,5 @@
 # Implementation Summary: Dio HTTP Adapter
 
-**Date:** February 8, 2026  
-**Project:** sc_appframework - Dio Integration  
-**Status:** ✅ Complete
-
 ---
 
 ## Quick Navigation
@@ -45,22 +41,19 @@ We successfully implemented a **minimal, production-ready Dio adapter** that enh
 - Added `addInterceptor()` API to enable custom request/response hooks
 - Added `clearInterceptors()` to remove interceptors
 - Added `hasInterceptorSupport` property to check availability
-- Proof of concept: Implemented **3 example interceptors**:
-  1. **AuthInterceptor** - Automatic token injection
-  2. **RetryInterceptor** - Automatic retry on failure
-  3. **CacheInterceptor** - Response caching
+- Proof of concept: Implemented **2 example interceptors**:
+  1. **LogInterceptor** - Logs request and response details
+  2. **AuthInterceptor** - Automatic token injection
+  3. **RetryInterceptor** - Automatic retry on failure
 
 **✅ Quality & Testing**
-- **3 test cases for interceptor API**:
-  1. Error handling when Dio not enabled
-  2. Support detection when Dio disabled
-  3. Multiple interceptor management
-- **4 test cases for Dio HTTP adapter**:
+- **4 comprehensive test cases**:
   1. Successfully perform GET request and return http.Response
   2. Handle 404 errors correctly
   3. Handle timeout errors
   4. Maintain backward compatibility with http.Response
-- **All 7 tests passing** ✅
+- **All 4 tests passing** ✅
+- **Test file:** `test/network/dio_http_adapter_test.dart`
 
 ---
 
@@ -77,10 +70,9 @@ To maintain focus and minimize risk, we deliberately scoped out the following fe
 
 **Current state:** POST/PUT/DELETE continue using the existing `http` package
 
-
 ---
 
-### 🔴 3. Custom Error Handling with Specific Error Types
+### 🔴 2. Custom Error Handling with Specific Error Types
 **Why excluded:**
 - Would require changes to public API (breaking change)
 - Current approach maps all errors to generic HTTP errors (backward compatible)
@@ -136,6 +128,7 @@ Dio offers many powerful features beyond basic HTTP requests:
 3. **Implement retry interceptor** - Automatic retry on transient failures
 4. **Implement logging interceptor** - Structured request/response logging
 5. **Implement cache interceptor** - Response caching to reduce network calls
+6. **Add request/response transformation helpers** - Simplify data mapping
 7. **Consider deprecating http package in favor of Dio** - Consolidate on single HTTP client
 
 ---
@@ -206,9 +199,13 @@ if (SCNetworkApi().hasInterceptorSupport) {
 | Dio Error | Mapped To |
 |-----------|-----------|
 | connectionTimeout | TimeoutException |
+| sendTimeout | TimeoutException |
 | receiveTimeout | TimeoutException |
 | badResponse (4xx/5xx) | http.Response with status |
 | connectionError | SocketException |
+| cancel | Exception |
+| badCertificate | Exception |
+| unknown | Exception |
 
 ### Request Flow
 
