@@ -1,8 +1,8 @@
 # Request → Response → Parsing Flow Documentation
 
-**Framework:** sc_appframework  
-**Date:** February 2026  
-**Purpose:** Complete flow documentation from API request initiation to parsed model response
+**Framework:** sc_appframework
+
+> **Note:** Line numbers referenced in this document are approximate and based on the codebase before the Dio adapter implementation. Actual line numbers in the latest code may differ slightly due to the addition of Dio-related functionality. The file paths and method names remain accurate.
 
 ---
 
