@@ -4,13 +4,14 @@ version: 0.4.5
 homepage:
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: ">=3.2.0 <4.0.0"
   flutter: ">=1.20.0"
 
 dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.2
+  dio: ^5.4.0
   dartz: ^0.10.0-nullsafety.2
   mocktail: ^0.1.4
   google_nav_bar: ^5.0.5

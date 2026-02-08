@@ -1,20 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:core';
-
+import 'dart:developer' as devtools show log;
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:sc_appframework/sc_appframework.dart';
-import 'package:sc_appframework/src/utils/sc_constants.dart';
 
 import '../models/list_response.dart';
 import '../models/single_response.dart';
-import 'package:http/http.dart' as http;
-
+import 'adapters/dio_http_adapter.dart';
 import 'sc_multipart_request.dart';
-import 'dart:developer' as devtools show log;
 
 extension Log on Object {
   void log() => devtools.log(toString());
@@ -41,6 +40,10 @@ class SCNetworkApi {
   List<String> _jsonDataLevel = ["data"];
   Box? _getCacheBox;
 
+  // Dio adapter for improved GET request handling
+  DioHttpAdapter? _dioAdapter;
+  bool _useDioForGet = false;
+
   static final SCNetworkApi _instance = SCNetworkApi._internal();
   factory SCNetworkApi() => _instance;
 
@@ -51,11 +54,21 @@ class SCNetworkApi {
     bool enableLog = false,
     bool enableBodyLog = false,
     bool enableHeaderLog = false,
+    bool useDioForGet = false, // New parameter to opt-in to Dio for GET
   }) async {
     _enableLog = enableLog;
     _enableBodyLog = enableBodyLog;
     _enableHeaderLog = enableHeaderLog;
+    _useDioForGet = useDioForGet;
     this.baseUrl = baseUrl;
+
+    // Initialize Dio adapter if enabled
+    if (_useDioForGet) {
+      _dioAdapter = DioHttpAdapter(
+        timeout: Duration(seconds: _timeoutSeconds),
+        headers: Map.from(_headers),
+      );
+    }
 
     await Hive.initFlutter("sc_appframework");
     _getCacheBox = await Hive.openBox(SCConstants.HIVE_BOX_GET_CACHE);
@@ -129,6 +142,32 @@ class SCNetworkApi {
   void disableHeaderLog() {
     _enableHeaderLog = false;
   }
+
+  /// Adds an interceptor to the Dio adapter
+  /// Only works when useDioForGet is enabled
+  void addInterceptor(Interceptor interceptor) {
+    if (_dioAdapter == null) {
+      throw StateError(
+        'Interceptors are only available when useDioForGet is enabled. '
+        'Call init(useDioForGet: true) first.',
+      );
+    }
+    _dioAdapter!.addInterceptor(interceptor);
+  }
+
+  /// Removes all interceptors from the Dio adapter
+  /// Only works when useDioForGet is enabled
+  void clearInterceptors() {
+    if (_dioAdapter == null) {
+      throw StateError(
+        'Interceptors are only available when useDioForGet is enabled. '
+        'Call init(useDioForGet: true) first.',
+      );
+    }
+    _dioAdapter!.clearInterceptors();
+  }
+
+  bool get hasInterceptorSupport => _dioAdapter != null;
 
   switchCacheBox({required String boxId}) async {
     await _getCacheBox?.close();
@@ -477,17 +516,29 @@ class SCNetworkApi {
     http.Response? response;
     switch (method) {
       case Method.GET:
-        response = await http
-            .get(
-          uri,
-          headers: headers,
-        )
-            .timeout(
-          Duration(seconds: timeoutSeconds),
-          onTimeout: () {
-            throw TimeoutException(SCConstants.TIMEOUT_EXCEPTION_MESSAGE);
-          },
-        );
+        // Use Dio adapter if enabled, otherwise fall back to http package
+        if (_useDioForGet && _dioAdapter != null) {
+          if (_enableLog) {
+            "Using Dio adapter for GET request".log();
+          }
+          response = await _dioAdapter!.get(
+            uri,
+            headers: headers,
+            timeout: Duration(seconds: timeoutSeconds),
+          );
+        } else {
+          response = await http
+              .get(
+            uri,
+            headers: headers,
+          )
+              .timeout(
+            Duration(seconds: timeoutSeconds),
+            onTimeout: () {
+              throw TimeoutException(SCConstants.TIMEOUT_EXCEPTION_MESSAGE);
+            },
+          );
+        }
         break;
       case Method.POST:
         response = await http.post(uri, headers: headers, body: body).timeout(
@@ -528,8 +579,8 @@ class SCNetworkApi {
         request.headers.addAll(headers);
 
         for (var filePath in filePayload!.filePaths) {
-          http.MultipartFile multipartFile =
-              await http.MultipartFile.fromPath(filePayload.fieldName, filePath);
+          http.MultipartFile multipartFile = await http.MultipartFile.fromPath(
+              filePayload.fieldName, filePath);
           request.files.add(multipartFile);
         }
 
